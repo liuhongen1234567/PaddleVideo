@@ -33,16 +33,16 @@ def test_model(cfg, weights, parallel=True):
 
     """
 
-    if cfg.get('use_npu', False):
-        places = paddle.set_device('npu')
-    elif cfg.get('use_xpu', False):
-        places = paddle.set_device('xpu')
+    if cfg.get("use_npu", False):
+        places = paddle.set_device("npu")
+    elif cfg.get("use_xpu", False):
+        places = paddle.set_device("xpu")
     else:
-        places = paddle.set_device('gpu')
+        places = paddle.set_device("gpu")
 
     # 1. Construct model.
-    if cfg.MODEL.get('backbone') and cfg.MODEL.backbone.get('pretrained'):
-        cfg.MODEL.backbone.pretrained = ''  # disable pretrain model init
+    if cfg.MODEL.get("backbone") and cfg.MODEL.backbone.get("pretrained"):
+        cfg.MODEL.backbone.pretrained = ""  # disable pretrain model init
     model = build_model(cfg.MODEL)
 
     if parallel:
@@ -54,22 +54,32 @@ def test_model(cfg, weights, parallel=True):
     batch_size = cfg.DATASET.get("test_batch_size", 8)
 
     # default num worker: 0, which means no subprocess will be created
-    num_workers = cfg.DATASET.get('num_workers', 0)
-    num_workers = cfg.DATASET.get('test_num_workers', num_workers)
-    dataloader_setting = dict(batch_size=batch_size,
-                              num_workers=num_workers,
-                              places=places,
-                              drop_last=False,
-                              shuffle=False)
+    num_workers = cfg.DATASET.get("num_workers", 0)
+    num_workers = cfg.DATASET.get("test_num_workers", num_workers)
+    dataloader_setting = dict(
+        batch_size=batch_size,
+        num_workers=num_workers,
+        places=places,
+        drop_last=False,
+        shuffle=False,
+    )
 
-    data_loader = build_dataloader(
-        dataset, **dataloader_setting) if cfg.model_name not in ['CFBI'
-                                                                 ] else dataset
+    data_loader = (
+        build_dataloader(dataset, **dataloader_setting)
+        if cfg.model_name not in ["CFBI"]
+        else dataset
+    )
 
     model.eval()
-
-    state_dicts = load(weights)
-    model.set_state_dict(state_dicts)
+    if cfg.get("Global"):
+        weight = cfg.Global.get("pretrained_model")
+        if weights is not None:
+            state_dicts = load(weights)
+            model.set_state_dict(state_dicts)
+    else:
+        if weights is not None:
+            state_dicts = load(weights)
+            model.set_state_dict(state_dicts)
 
     # add params to metrics
     cfg.METRIC.data_size = len(dataset)
@@ -81,10 +91,10 @@ def test_model(cfg, weights, parallel=True):
 
     for batch_id, data in enumerate(data_loader):
         if cfg.model_name in [
-                'CFBI'
+            "CFBI"
         ]:  # for VOS task, dataset for video and dataloader for frames in each video
             Metric.update(batch_id, data, model)
         else:
-            outputs = model(data, mode='test')
+            outputs = model(data, mode="test")
             Metric.update(batch_id, data, outputs)
     Metric.accumulate()
