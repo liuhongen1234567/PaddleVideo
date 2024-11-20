@@ -42,6 +42,7 @@ from ..modeling.builder import build_model
 from ..solver import build_lr, build_optimizer
 from ..utils import do_preciseBN
 from tools.export_model import get_input_spec
+from .download import get_weights_path_from_url
 
 
 def _mkdir_if_not_exist(path, logger):
@@ -222,6 +223,16 @@ def train_model(
         model_dict = load(weights)
         model.set_state_dict(model_dict)
         logger.info("Finetune from checkpoint: {}".format(weights))
+
+    if cfg.get("Global") is not None:
+        weight = cfg.Global.get("pretrained_model")
+
+        if weight is not None:
+            if weight.startswith(("http://", "https://")):
+                weight = get_weights_path_from_url(weight)
+            state_dicts = load(weight)
+            logger.info(f"Load pretrained model from {weight}")
+            model.set_state_dict(state_dicts)
 
     # 7. Parallelize(optional)
     if parallel:

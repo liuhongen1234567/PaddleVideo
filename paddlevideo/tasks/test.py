@@ -18,6 +18,7 @@ from paddlevideo.utils import get_logger, load
 from ..loader.builder import build_dataloader, build_dataset
 from ..metrics import build_metric
 from ..modeling.builder import build_model
+from .download import get_weights_path_from_url
 
 logger = get_logger("paddlevideo")
 
@@ -73,9 +74,13 @@ def test_model(cfg, weights, parallel=True):
     model.eval()
     if cfg.get("Global"):
         weight = cfg.Global.get("pretrained_model")
-        if weights is not None:
-            state_dicts = load(weights)
+        if weight is not None:
+            if weight.startswith(("http://", "https://")):
+                weight = get_weights_path_from_url(weight)
+            state_dicts = load(weight)
+            logger.info(f"Load pretrained model from {weight}")
             model.set_state_dict(state_dicts)
+
     else:
         if weights is not None:
             state_dicts = load(weights)

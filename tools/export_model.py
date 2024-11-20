@@ -29,6 +29,7 @@ sys.path.append(os.path.abspath(os.path.join(__dir__, "../")))
 from paddlevideo.modeling.builder import build_model
 from paddlevideo.utils import get_config
 from paddlevideo.utils import mkdir, get_logger
+from paddlevideo.tasks.download import get_weights_path_from_url
 
 
 def parse_args():
@@ -327,11 +328,17 @@ def main():
     cfg, model_name = trim_config(
         get_config(args.config, overrides=args.override, show=False)
     )
-
-    print(f"Building model({model_name})...")
+    logger = get_logger("paddlevideo")
+    if cfg.get("Global") is not None:
+        print(f"Building model({model_name})...")
     model = build_model(cfg.MODEL)
     if cfg.get("Global") is not None:
-        args.pretrained_params = cfg.Global.pretrained_model
+        weight = cfg.Global.pretrained_model
+        if weight is not None:
+            if weight.startswith(("http://", "https://")):
+                weight = get_weights_path_from_url(weight)
+            logger.info(f"Load pretrained model from {weight}")
+            args.pretrained_params = weight
     assert osp.isfile(
         args.pretrained_params
     ), f"pretrained params ({args.pretrained_params} is not a file path.)"
@@ -346,7 +353,7 @@ def main():
     model.eval()
 
     if cfg.get("Global") is not None:
-        logger = get_logger("paddlevideo")
+
         export(cfg, model, args.output_path, uniform_output_enabled=True, logger=logger)
     else:
         # for rep nets
