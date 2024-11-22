@@ -43,6 +43,7 @@ from ..solver import build_lr, build_optimizer
 from ..utils import do_preciseBN
 from tools.export_model import get_input_spec
 from .download import get_weights_path_from_url
+from .save_result import update_train_results, save_model_info
 
 
 def _mkdir_if_not_exist(path, logger):
@@ -436,8 +437,8 @@ def train_model(
                     ):
                         best = record_list[top_flag].avg
                         best_flag = True
-
-            return best, best_flag
+            acc = record_list["top1"].avg
+            return best, best_flag, acc
 
         # use precise bn to improve acc
         if cfg.get("PRECISEBN") and (
@@ -457,7 +458,7 @@ def train_model(
             epoch % cfg.get("val_interval", 1) == 0 or epoch == cfg.epochs - 1
         ):
             with paddle.no_grad():
-                best, save_best_flag = evaluate(best)
+                best, save_best_flag, acc = evaluate(best)
             # save best
             if save_best_flag:
                 save_student_model_flag = (
@@ -481,7 +482,7 @@ def train_model(
                         model_path + ".pdparams",
                         save_student_model=save_student_model_flag,
                     )
-
+                    metric_info = {"metric": acc, "epoch": epoch}
                     if uniform_output_enabled:
                         save_path = os.path.join(output_dir, prefix, "inference")
                         export(
@@ -491,6 +492,9 @@ def train_model(
                             uniform_output_enabled=uniform_output_enabled,
                             logger=logger,
                         )
+
+                        update_train_results(cfg, prefix, metric_info, ema=None)
+                        save_model_info(metric_info, output_dir, prefix)
                 else:
                     save(
                         optimizer.state_dict(),
@@ -531,6 +535,7 @@ def train_model(
         # 10. Save model and optimizer
         if epoch % cfg.get("save_interval", 1) == 0 or epoch == cfg.epochs - 1:
             if cfg.get("Global") is not None:
+                metric_info = {"metric": acc, "epoch": epoch}
                 prefix = "epoch_{}".format(epoch)
                 model_path = osp.join(output_dir, prefix)
                 _mkdir_if_not_exist(model_path, logger)
@@ -547,6 +552,14 @@ def train_model(
                         uniform_output_enabled=uniform_output_enabled,
                         logger=logger,
                     )
+                    update_train_results(
+                        cfg,
+                        prefix,
+                        metric_info,
+                        done_flag=epoch == cfg["epochs"],
+                        ema=None,
+                    )
+                    save_model_info(metric_info, output_dir, prefix)
             else:
                 save(
                     optimizer.state_dict(),
@@ -559,6 +572,7 @@ def train_model(
                     ),
                 )
         if cfg.get("Global") is not None:
+            metric_info = {"metric": acc, "epoch": epoch}
             prefix = "latest"
             model_path = osp.join(output_dir, prefix)
             _mkdir_if_not_exist(model_path, logger)
@@ -575,6 +589,7 @@ def train_model(
                     uniform_output_enabled=uniform_output_enabled,
                     logger=logger,
                 )
+                save_model_info(metric_info, output_dir, prefix)
 
     logger.info(f"training {model_name} finished")
 
