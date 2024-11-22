@@ -556,7 +556,7 @@ def train_model(
                         cfg,
                         prefix,
                         metric_info,
-                        done_flag=epoch == cfg["epochs"],
+                        done_flag=epoch + 1 == cfg["epochs"],
                         ema=None,
                     )
                     save_model_info(metric_info, output_dir, prefix)
