@@ -465,6 +465,7 @@ def train_model(
                     True if "Distillation" in cfg.MODEL.framework else False
                 )
                 if cfg.get("Global") is not None:
+                    metric_info = {"metric": acc, "epoch": epoch}
                     prefix = "best_model"
                     model_path = osp.join(output_dir, prefix)
                     _mkdir_if_not_exist(model_path, logger)
@@ -482,7 +483,8 @@ def train_model(
                         model_path + ".pdparams",
                         save_student_model=save_student_model_flag,
                     )
-                    metric_info = {"metric": acc, "epoch": epoch}
+                    save(metric_info, model_path + ".pdstates")
+
                     if uniform_output_enabled:
                         save_path = os.path.join(output_dir, prefix, "inference")
                         export(
@@ -542,6 +544,7 @@ def train_model(
                 model_path = osp.join(model_path, prefix)
                 save(optimizer.state_dict(), model_path + ".pdopt")
                 save(model.state_dict(), model_path + ".pdparams")
+                save(metric_info, model_path + ".pdstates")
 
                 if uniform_output_enabled:
                     save_path = os.path.join(output_dir, prefix, "inference")
@@ -579,6 +582,7 @@ def train_model(
             model_path = osp.join(model_path, prefix)
             save(optimizer.state_dict(), model_path + ".pdopt")
             save(model.state_dict(), model_path + ".pdparams")
+            save(metric_info, model_path + ".pdstates")
 
             if uniform_output_enabled:
                 save_path = os.path.join(output_dir, prefix, "inference")
