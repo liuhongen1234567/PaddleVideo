@@ -2,7 +2,8 @@ numpy
 pandas
 tqdm
 PyYAML>=5.1
-opencv-python
-decord==0.6.0
-scipy
+opencv-python==4.2.0.32
+decord==0.4.2
+av==8.0.3
+scipy==1.6.3
 scikit-image
